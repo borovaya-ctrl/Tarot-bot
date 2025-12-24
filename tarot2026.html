@@ -191,4 +191,375 @@
 
         .magic-btn::before {
             content: '';
-            position:
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.5s;
+        }
+
+        .magic-btn:active {
+            transform: scale(0.96);
+        }
+
+        .magic-btn:disabled {
+            background: #333;
+            box-shadow: none;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        /* --- Оверлей (Сообщение о лимите) --- */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay-content {
+            background: #111;
+            border: 1px solid var(--accent-yellow);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 85%;
+            width: 350px;
+            box-shadow: 0 0 30px rgba(255, 234, 0, 0.15);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .overlay.visible .overlay-content {
+            transform: scale(1);
+        }
+
+        .overlay-content h3 {
+            font-family: 'Philosopher', sans-serif;
+            color: var(--accent-yellow);
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+
+        .overlay-content p {
+            font-size: 1rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            color: #ccc;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-family: 'Philosopher', sans-serif;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .close-btn:active {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        /* --- Фон --- */
+        .bg-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .floating-item {
+            position: absolute;
+            user-select: none;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+            animation-name: fall, sway;
+            animation-timing-function: linear, ease-in-out;
+            animation-iteration-count: infinite, infinite;
+        }
+
+        @keyframes fall {
+            0% { top: -10%; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { top: 110%; opacity: 0; }
+        }
+
+        @keyframes sway {
+            0% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(20px) rotate(45deg); }
+            50% { transform: translateX(0) rotate(0deg); }
+            75% { transform: translateX(-20px) rotate(-45deg); }
+            100% { transform: translateX(0) rotate(0deg); }
+        }
+
+        /* Кастомный курсор скрываем на мобильных устройствах, так как в Telegram App он не нужен */
+        @media (hover: hover) {
+            body { cursor: none; }
+            .magic-btn, .close-btn { cursor: none; }
+            
+            .cursor-dot {
+                position: fixed;
+                top: 0; left: 0;
+                width: 6px; height: 6px;
+                background-color: var(--accent-cyan);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                box-shadow: 0 0 10px var(--accent-cyan);
+            }
+
+            .cursor-outline {
+                position: fixed;
+                top: 0; left: 0;
+                width: 30px; height: 30px;
+                border: 1px solid var(--accent-yellow);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9998;
+                opacity: 0.6;
+                transition: width 0.1s, height 0.1s;
+            }
+        }
+        
+        @media (hover: none) {
+            .cursor-dot, .cursor-outline { display: none; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-container" id="bgContainer"></div>
+
+    <!-- Элементы курсора (покажутся только на Desktop) -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <!-- Оверлей ограничения -->
+    <div id="limitOverlay" class="overlay">
+        <div class="overlay-content">
+            <h3>Звёзды уже сказали своё слово</h3>
+            <p>Вселенная уже дала тебе подсказку на сегодня. Не стоит искушать судьбу повторными вопросами.<br><br>Обдумай этот знак, а за новым приходи завтра.</p>
+            <button class="close-btn" onclick="closeOverlay()">Принимаю</button>
+        </div>
+    </div>
+
+    <h1>Карта Дня</h1>
+    <p class="subtitle">Что вселенная приготовила сегодня?</p>
+
+    <div class="oracle-container">
+        <div class="card-placeholder" id="cardDisplay">
+            <div class="back-design" id="cardBack">✦</div>
+            <img id="cardImage" src="" alt="Card">
+        </div>
+
+        <div class="prediction-box">
+            <h2 class="card-name" id="cardName"></h2>
+            <p class="prediction-text" id="predictionText">Колода дремлет. Нажми кнопку, чтобы пробудить магию.</p>
+        </div>
+
+        <button class="magic-btn" onclick="handleButtonClick()">Узнать судьбу</button>
+    </div>
+
+    <script>
+        // --- Данные карт (Таро Уэйта - Полная колода Старших Арканов 22 карты) ---
+        const deck = [
+            { name: "Шут", img: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg", text: "Сегодня день для чистого листа. Сделай что-то, чего от тебя никто не ожидает (даже ты сам). Не бойся выглядеть глупо — именно в этом твоя сила сегодня." },
+            { name: "Маг", img: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg", text: "Все инструменты у тебя в руках. Хочешь чудо? Организуй его. Сегодня твоя харизма работает на 200%, используй это для достижения целей." },
+            { name: "Верховная Жрица", img: "https://upload.wikimedia.org/wikipedia/commons/8/88/RWS_Tarot_02_High_Priestess.jpg", text: "Тише. Не нужно никому ничего доказывать. Ответ, который ты ищешь, уже у тебя в голове, просто перестань скроллить ленту и послушай тишину." },
+            { name: "Императрица", img: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_03_Empress.jpg", text: "День заботы о себе и создания красоты. Вкусно поешь, надень любимую вещь. Твои идеи сегодня плодородны — запиши даже самые странные." },
+            { name: "Император", img: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWS_Tarot_04_Emperor.jpg", text: "Включи логику и дисциплину. Хаос сегодня не пройдет. Построй четкий план и следуй ему, окружающие будут слушаться тебя беспрекословно." },
+            { name: "Иерофант", img: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWS_Tarot_05_Hierophant.jpg", text: "Время следовать правилам. Не изобретай велосипед, старые методы сегодня работают лучше всего. Послушай совета того, кто опытнее — он дело говорит." },
+            { name: "Влюбленные", img: "https://upload.wikimedia.org/wikipedia/commons/3/3a/RWS_Tarot_06_Lovers.jpg", text: "Перед тобой выбор. Не пытайся усидеть на двух стульях. Слушай сердце, но не отключай голову окончательно. Сегодня важны партнерство и доверие." },
+            { name: "Колесница", img: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWS_Tarot_07_Chariot.jpg", text: "Полный вперед! Никаких сомнений. Видишь цель? Едь к ней, даже если дорога ухабистая. Твоя уверенность сегодня пробьет любые стены." },
+            { name: "Сила", img: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWS_Tarot_08_Strength.jpg", text: "Мягкая сила побеждает агрессию. Будь терпеливее к чужим недостаткам (и своим тоже). Ты справишься с любым 'львом' сегодня, просто почесав его за ушком." },
+            { name: "Отшельник", img: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWS_Tarot_09_Hermit.jpg", text: "Идеальный день, чтобы побыть одному. Погрузись в свои мысли, проанализируй прошлый опыт. Мудрость приходит в покое, а не в суете." },
+            { name: "Колесо Фортуны", img: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", text: "Удача — дама капризная, но сегодня она подмигивает тебе. Случайности не случайны. Лови момент и не сопротивляйся переменам." },
+            { name: "Справедливость", img: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg", text: "Что посеешь, то и пожнешь. Сегодня мир будет зеркалить твои поступки. Будь честен с собой, и решение сложного вопроса придет само." },
+            { name: "Повешенный", img: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg", text: "Ситуация зависла? Расслабься. Чем больше дёргаешься, тем туже узел. Посмотри на проблему под другим углом (буквально, ляг на диван). Иногда ничего не делать — лучшая тактика." },
+            { name: "Смерть", img: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg", text: "Время трансформации. Отпусти то, что уже умерло (старые обиды, ненужные вещи, скучные дела). Освободи место для нового старта." },
+            { name: "Умеренность", img: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg", text: "Главное слово дня — баланс. Не кидайся из крайности в крайность. Смешивай работу и отдых, кофе и воду. Тише едешь — дальше будешь, и нервы целее." },
+            { name: "Дьявол", img: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg", text: "Осторожнее с желаниями. Сегодня легко поддаться искушению или впасть в зависимость. Позволь себе маленькую шалость, но знай меру." },
+            { name: "Башня", img: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWS_Tarot_16_Tower.jpg", text: "Внезапные перемены могут выбить почву из-под ног. Не паникуй. Иногда нужно, чтобы старый замок рухнул, чтобы ты увидел красивый закат." },
+            { name: "Звезда", img: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_17_Star.jpg", text: "Надежда есть! Ты на верном пути. Мечтай смелее, сегодня вселенная записывает твои желания. Вдохновение придет оттуда, откуда не ждешь." },
+            { name: "Луна", img: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg", text: "В сумерках всё искажается. Не верь страхам и тревогам — это игры воображения. Доверяй только фактам и интуиции, а не сплетням." },
+            { name: "Солнце", img: "https://upload.wikimedia.org/wikipedia/commons/1/17/RWS_Tarot_19_Sun.jpg", text: "Блестящий день! Энергия бьет ключом. Всё будет получаться легко и с огоньком. Поделись своим хорошим настроением с кем-нибудь хмурым." },
+            { name: "Суд", img: "https://upload.wikimedia.org/wikipedia/commons/d/dd/RWS_Tarot_20_Judgement.jpg", text: "Пора просыпаться! Вселенная трубит общий сбор. Прими важное решение, которое давно откладывал. Это не конец света, это левел-ап твоей жизни." },
+            { name: "Мир", img: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg", text: "Цикл завершен. Ты молодец. Наслаждайся чувством гармонии и целостности. Ты находишься именно там, где должен быть." }
+        ];
+
+        // --- Управление состоянием (LocalStorage) ---
+        function getTodayString() {
+            // Используем локальное время, чтобы дата менялась корректно
+            const date = new Date();
+            return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+        }
+
+        const TODAY = getTodayString();
+        let hasDrawnToday = false;
+
+        // Элементы DOM
+        const cardDisplay = document.getElementById('cardDisplay');
+        const cardBack = document.getElementById('cardBack');
+        const cardImage = document.getElementById('cardImage');
+        const cardName = document.getElementById('cardName');
+        const predictionText = document.getElementById('predictionText');
+        const btn = document.querySelector('.magic-btn');
+        const overlay = document.getElementById('limitOverlay');
+
+        // Проверка при загрузке страницы
+        window.addEventListener('load', () => {
+            const savedDate = localStorage.getItem('tarotLastDrawDate');
+            const savedCardIndex = localStorage.getItem('tarotSavedCardIndex');
+
+            if (savedDate === TODAY && savedCardIndex !== null) {
+                // Если сегодня уже гадали - восстанавливаем карту
+                hasDrawnToday = true;
+                const card = deck[savedCardIndex];
+                
+                // Показываем карту сразу без анимации тасования
+                cardBack.style.display = 'none';
+                cardImage.src = card.img;
+                cardImage.style.display = 'block';
+                cardDisplay.classList.add('active');
+                
+                cardName.innerText = card.name;
+                cardName.style.display = 'block';
+                predictionText.innerText = card.text;
+                
+                // Меняем текст кнопки
+                btn.innerText = "Вернуться завтра";
+            }
+        });
+
+        // Основная функция кнопки
+        function handleButtonClick() {
+            // Вибрация при нажатии (Haptic Feedback) - фишка Телеграма
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+            }
+
+            if (hasDrawnToday) {
+                overlay.classList.add('visible');
+            } else {
+                drawCard();
+            }
+        }
+
+        function closeOverlay() {
+            overlay.classList.remove('visible');
+        }
+
+        function drawCard() {
+            btn.disabled = true;
+            
+            // Сброс визуала
+            cardDisplay.classList.remove('active');
+            cardBack.style.display = 'block';
+            cardImage.style.display = 'none'; 
+            cardName.style.display = 'none';
+            predictionText.innerHTML = "<em>Звезды шепчут...</em>";
+            
+            setTimeout(() => {
+                // Генерируем случайный индекс
+                const randomIndex = Math.floor(Math.random() * deck.length);
+                const randomCard = deck[randomIndex];
+
+                // Сохраняем в память
+                localStorage.setItem('tarotLastDrawDate', TODAY);
+                localStorage.setItem('tarotSavedCardIndex', randomIndex);
+                hasDrawnToday = true;
+
+                // Успешная вибрация
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+
+                // Показываем данные
+                cardImage.src = randomCard.img;
+                cardName.innerText = randomCard.name;
+                predictionText.innerText = randomCard.text;
+
+                // Показ карты
+                cardBack.style.display = 'none';
+                cardImage.style.display = 'block'; 
+                cardDisplay.classList.add('active');
+                cardName.style.display = 'block';
+                
+                btn.disabled = false;
+                btn.innerText = "Вернуться завтра"; 
+            }, 1000);
+        }
+
+        // --- Логика курсора (Только для ПК, см. CSS media queries) ---
+        const cursorDot = document.querySelector(".cursor-dot");
+        const cursorOutline = document.querySelector(".cursor-outline");
+
+        window.addEventListener("mousemove", (e) => {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+        });
+
+        // --- Динамический Фон ---
+        const bgContainer = document.getElementById('bgContainer');
+        const symbols = ['👁️', '✦', '✨', '⋆', '☾'];
+        const particleCount = 30; // Чуть меньше частиц для оптимизации на телефонах
+
+        function createParticles() {
+            for (let i = 0; i < particleCount; i++) {
+                const item = document.createElement('div');
+                item.classList.add('floating-item');
+                
+                item.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+                
+                const size = Math.random() * 20 + 10;
+                item.style.fontSize = `${size}px`;
+                
+                item.style.left = Math.random() * 100 + 'vw';
+                
+                const duration = Math.random() * 15 + 10;
+                item.style.animationDuration = `${duration}s, 4s`;
+                
+                item.style.animationDelay = `-${Math.random() * 20}s`;
+                
+                const colors = ['#ffffff', '#9D4EDD', '#00F0FF', '#FFEA00'];
+                item.style.color = colors[Math.floor(Math.random() * colors.length)];
+                
+                item.style.opacity = Math.random() * 0.5 + 0.3;
+
+                bgContainer.appendChild(item);
+            }
+        }
+        createParticles();
+
+    </script>
+</body>
+</html>
